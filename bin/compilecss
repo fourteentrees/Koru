@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# will compile the css in $KORU_ROOT/static/css/input.css to $KORU_ROOT/static/css/koru.css using the tailwindcss cli tool
+
+# funcs
+get_script_dir()
+{
+    local SOURCE_PATH="${BASH_SOURCE[0]}"
+    local SYMLINK_DIR
+    local SCRIPT_DIR
+    # Resolve symlinks recursively
+    while [ -L "$SOURCE_PATH" ]; do
+        # Get symlink directory
+        SYMLINK_DIR="$( cd -P "$( dirname "$SOURCE_PATH" )" >/dev/null 2>&1 && pwd )"
+        # Resolve symlink target (relative or absolute)
+        SOURCE_PATH="$(readlink "$SOURCE_PATH")"
+        # Check if candidate path is relative or absolute
+        if [[ $SOURCE_PATH != /* ]]; then
+            # Candidate path is relative, resolve to full path
+            SOURCE_PATH=$SYMLINK_DIR/$SOURCE_PATH
+        fi
+    done
+    # Get final script directory path from fully resolved source path
+    SCRIPT_DIR="$(cd -P "$( dirname "$SOURCE_PATH" )" >/dev/null 2>&1 && pwd)"
+    echo "$SCRIPT_DIR"
+}
+
+build_download_link()
+{
+    local ARCH
+    local DL1
+    local DL2
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+        x86_64)
+            DL1="x64"
+            ;;
+        aarch64)
+            DL1="arm64"
+            ;;
+        *)
+            echo "Unsupported architecture: $ARCH" >&2
+            exit 1
+            ;;
+    esac
+
+    # check if we need musl
+    if ldd --version 2>&1 | grep -q "musl"; then
+        DL2="-musl"
+    else
+        DL2=""
+    fi
+
+    echo "${DL1}${DL2}"
+}
+
+download_tailwindcss()
+{
+    local dl_link
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        dl_link="https://github.com/tailwindlabs/tailwindcss/releases/download/latest/tailwindcss-linux-$(build_download_link)"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        dl_link="https://github.com/tailwindlabs/tailwindcss/releases/download/latest/tailwindcss-macos-$(build_download_link)"
+    elif [[ "$OSTYPE" == "cygwin" ]]; then
+        echo "Apparently you're on Windows."
+        echo "Fortunately for you, there's a better way! Please run compilecss.bat instead."
+        exit 1
+    elif [[ "$OSTYPE" == "msys" ]]; then
+        echo "Apparently you're on Windows."
+        echo "Fortunately for you, there's a better way! Please run compilecss.bat instead."
+        exit 1
+    elif [[ "$OSTYPE" == "win32" ]]; then
+        echo "Apparently you're on Windows. Congratulations on getting Bash working lmao."
+        echo "Fortunately for you, there's a better way! Please run compilecss.bat instead."
+        exit 1
+    elif [[ "$OSTYPE" == "freebsd"* ]]; then
+        echo "FreeBSD is not supported."
+        exit 1
+    else
+        echo "Could not determine which tailwindcss binary to download, download it manually: https://github.com/tailwindlabs/tailwindcss/releases/latest"
+        exit 1
+    fi
+    echo "$dl_link"
+}
+
+CWD="$(pwd)"
+
+SCRIPT_DIR=$(get_script_dir)
+# Root will be one level up from the script dir
+KORU_ROOT=$(dirname "$SCRIPT_DIR")
+
+if [[ -f "$KORU_ROOT/tailwindcss" ]]; then
+    echo "tailwindcss executable already exists, skipping download."
+else
+    download_tailwindcss
+    echo "Downloading tailwindcss from $(download_tailwindcss)"
+    curl -L -o "$KORU_ROOT/tailwindcss" "$(download_tailwindcss)"
+    chmod +x "$KORU_ROOT/tailwindcss"
+fi
+
+if [[ -f "$KORU_ROOT/static/css/input.css" ]]; then
+    :
+else
+    echo "Input CSS file not found at $KORU_ROOT/static/css/input.css, grab a fresh copy from the repo."
+    exit 1
+fi
+
+echo "Compiling CSS."
+
+"$KORU_ROOT/tailwindcss" -i "$KORU_ROOT/static/css/input.css" -o "$KORU_ROOT/static/css/koru.css"

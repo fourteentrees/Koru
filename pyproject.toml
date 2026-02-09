@@ -1,0 +1,14 @@
+[project]
+name = "koru"
+version = "0.1.0"
+description = "An open-source, privacy-focused Discord alternative."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.42.44",
+    "django>=6.0.2",
+    "django-admin>=2.0.2",
+    "django-allauth>=65.14.1",
+    "django-storages>=1.14.6",
+    "snowflakekit>=0.1.1",
+]
