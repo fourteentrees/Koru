@@ -1,5 +1,5 @@
 from django.db import models
-from koru.model import ResourceModel, snowflake_from_timestamp
+from koru.utils import ResourceModel, snowflake_from_timestamp
 from django.forms import ValidationError
 
 class BaseModel(ResourceModel):
